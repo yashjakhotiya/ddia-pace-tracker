@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DDIA Pace · 81 pp / 4 h</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: #0a0a0a; color: #fff; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; min-height: 100vh; }
+  body { padding: 16px; padding-bottom: env(safe-area-inset-bottom, 16px); }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.2em; color: #666; margin-bottom: 20px; text-align: center; }
+
+  .stage { display: none; }
+  .stage.on { display: block; }
+
+  /* Setup */
+  .setup { background: #161616; padding: 24px; border-radius: 16px; }
+  .setup label { display: block; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.12em; margin: 16px 0 6px; }
+  .setup label:first-child { margin-top: 0; }
+  .setup input { width: 100%; padding: 14px; font-size: 20px; background: #222; color: #fff; border: 1px solid #2c2c2c; border-radius: 8px; font-variant-numeric: tabular-nums; }
+  .setup button { width: 100%; padding: 18px; font-size: 15px; background: #2563eb; color: #fff; border: none; border-radius: 10px; margin-top: 24px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 700; }
+  .hint { font-size: 12px; color: #666; margin-top: 8px; }
+
+  /* Run stage */
+  .target { padding: 28px 20px 22px; border-radius: 16px; text-align: center; margin-bottom: 12px; transition: background 0.4s, color 0.4s; background: #16221a; }
+  .target.good { background: #064e3b; }
+  .target.warn { background: #78350f; }
+  .target.bad  { background: #7f1d1d; }
+  .t-label { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.18em; margin-bottom: 6px; }
+  .t-page  { font-size: 104px; font-weight: 800; line-height: 0.95; font-variant-numeric: tabular-nums; }
+  .t-sub   { font-size: 14px; opacity: 0.75; margin-top: 6px; }
+  .t-delta { font-size: 18px; font-weight: 700; margin-top: 10px; letter-spacing: 0.05em; }
+
+  .cd { background: #161616; padding: 22px 20px; border-radius: 16px; text-align: center; margin-bottom: 12px; transition: background 0.4s; }
+  .cd.urgent { background: #4c1d1d; animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { background: #4c1d1d; } 50% { background: #7f1d1d; } }
+  .cd-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.18em; margin-bottom: 6px; }
+  .cd-value { font-size: 72px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .stat { background: #161616; padding: 14px; border-radius: 14px; text-align: center; }
+  .stat-l { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 4px; }
+  .stat-v { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .bar-wrap { background: #161616; padding: 14px 16px; border-radius: 14px; margin-bottom: 14px; }
+  .bar-top { display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-bottom: 8px; letter-spacing: 0.05em; }
+  .bar { height: 10px; background: #0a0a0a; border-radius: 5px; overflow: hidden; position: relative; }
+  .bar-actual { position: absolute; left: 0; top: 0; height: 100%; background: #2563eb; transition: width 0.3s; }
+  .bar-target { position: absolute; top: -2px; width: 2px; height: 14px; background: #fbbf24; }
+
+  .ctrl { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ctrl button { padding: 20px 12px; font-size: 15px; border: none; border-radius: 14px; cursor: pointer; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #fff; }
+  .b-mark { background: #16a34a; }
+  .b-unmark { background: #4b5563; font-size: 12px !important; padding: 14px !important; }
+  .b-pause { background: #1f2937; }
+  .b-resume { background: #2563eb; }
+  .b-reset { background: transparent; color: #555; border: 1px solid #2a2a2a !important; margin-top: 10px; padding: 12px !important; font-size: 11px !important; grid-column: 1 / -1; }
+  .ctrl button:active { transform: scale(0.97); }
+
+  .sound-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11px; color: #666; margin-top: 12px; text-transform: uppercase; letter-spacing: 0.12em; cursor: pointer; user-select: none; }
+  .sound-toggle input { accent-color: #2563eb; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>DDIA Pace · 81 pp · 4 h</h1>
+
+  <!-- Setup -->
+  <div id="setup" class="stage on">
+    <div class="setup">
+      <label>Pages already read this session</label>
+      <input type="number" id="seedRead" value="0" min="0">
+      <div class="hint">Set to 0 if starting fresh. Use this to resume after a break.</div>
+
+      <label>Total pages to cover</label>
+      <input type="number" id="seedTotal" value="81" min="1">
+
+      <label>Total minutes available</label>
+      <input type="number" id="seedMins" value="240" min="1">
+
+      <button onclick="start()">Start reading</button>
+    </div>
+  </div>
+
+  <!-- Run -->
+  <div id="run" class="stage">
+    <div id="target" class="target good">
+      <div class="t-label">You should be on</div>
+      <div class="t-page" id="targetPage">—</div>
+      <div class="t-sub" id="chapterHint">—</div>
+      <div class="t-delta" id="delta">ON PACE</div>
+    </div>
+
+    <div id="cd" class="cd">
+      <div class="cd-label">Finish this page in</div>
+      <div class="cd-value" id="countdown">—</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-l">You're on page</div>
+        <div class="stat-v" id="actualPage">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-l">Session left</div>
+        <div class="stat-v" id="totalLeft">—</div>
+      </div>
+    </div>
+
+    <div class="bar-wrap">
+      <div class="bar-top">
+        <span id="progressText">0 / 81 pages</span>
+        <span id="paceText">— min/pg</span>
+      </div>
+      <div class="bar">
+        <div class="bar-actual" id="barActual"></div>
+        <div class="bar-target" id="barTarget"></div>
+      </div>
+    </div>
+
+    <div class="ctrl">
+      <button class="b-mark" onclick="markPage()">✓ Page done</button>
+      <button class="b-pause" id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+      <button class="b-unmark" onclick="unmarkPage()">↶ Undo last page</button>
+      <button class="b-unmark" onclick="addFive()">+5 min slack</button>
+      <button class="b-reset" onclick="reset()">Reset session</button>
+    </div>
+
+    <label class="sound-toggle">
+      <input type="checkbox" id="soundOn" checked> Tick sound when behind &amp; under 20s
+    </label>
+  </div>
+</div>
+
+<script>
+const KEY = 'ddia-tracker-v1';
+const SOUND_KEY = 'ddia-tracker-sound-v1';
+
+// DDIA 2nd ed session map — adjust if your chapter boundaries differ.
+// Session-internal page numbers (1..81) → chapter name + within-chapter page.
+const CHAPTERS = [
+  { name: 'Preface',   start: 1,  end: 6  },
+  { name: 'Chapter 1', start: 7,  end: 31 },
+  { name: 'Chapter 2', start: 32, end: 38 },
+  { name: 'Chapter 3', start: 39, end: 81 }
+];
+
+let state = null;
+let ticker = null;
+
+// --- Audio (ticking when on-target-or-behind and under 20s) ---
+let audio = null;
+let ticking = false;
+function ensureAudio() {
+  if (!audio) {
+    audio = new Audio('assets/clock-ticking-sound.mp3');
+    audio.loop = true;
+    audio.volume = 0.7;
+    audio.preload = 'auto';
+  }
+}
+function playTick() {
+  ensureAudio();
+  audio.play().catch(() => { /* autoplay may be blocked until user gesture */ });
+}
+function stopTick() {
+  if (audio) { audio.pause(); audio.currentTime = 0; }
+}
+function soundEnabled() {
+  const el = document.getElementById('soundOn');
+  return el ? el.checked : true;
+}
+
+function load() {
+  // Restore sound pref
+  const soundPref = localStorage.getItem(SOUND_KEY);
+  if (soundPref !== null) {
+    const el = document.getElementById('soundOn');
+    if (el) el.checked = soundPref === '1';
+  }
+  document.getElementById('soundOn').addEventListener('change', (e) => {
+    localStorage.setItem(SOUND_KEY, e.target.checked ? '1' : '0');
+    if (!e.target.checked) { stopTick(); ticking = false; }
+  });
+
+  const raw = localStorage.getItem(KEY);
+  if (!raw) return;
+  try {
+    state = JSON.parse(raw);
+    showStage('run');
+    updatePauseBtn();
+    tick();
+    if (!state.paused) startTicker();
+  } catch (e) { console.error(e); }
+}
+
+function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+
+function showStage(name) {
+  document.getElementById('setup').classList.toggle('on', name === 'setup');
+  document.getElementById('run').classList.toggle('on', name === 'run');
+}
+
+function start() {
+  const seededRead = clampInt(document.getElementById('seedRead').value, 0, 10000);
+  const totalPages = clampInt(document.getElementById('seedTotal').value, 1, 10000);
+  const totalMins  = clampInt(document.getElementById('seedMins').value,  1, 10000);
+  if (seededRead >= totalPages) { alert('Already done — nothing to read.'); return; }
+  state = {
+    totalPages,
+    seededRead,         // constant: where we started this session
+    pagesRead: seededRead,
+    totalMs: totalMins * 60 * 1000,
+    elapsedMs: 0,
+    lastResume: Date.now(),
+    paused: false
+  };
+  save();
+  // Prime audio with the click gesture so browser allows playback later.
+  ensureAudio();
+  showStage('run');
+  updatePauseBtn();
+  tick();
+  startTicker();
+}
+
+function clampInt(v, lo, hi) {
+  const n = parseInt(v, 10);
+  if (isNaN(n)) return lo;
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function startTicker() {
+  if (ticker) clearInterval(ticker);
+  ticker = setInterval(tick, 250);
+}
+
+function currentElapsed() {
+  if (!state) return 0;
+  if (state.paused) return state.elapsedMs;
+  return state.elapsedMs + (Date.now() - state.lastResume);
+}
+
+function tick() {
+  if (!state) return;
+  const t = currentElapsed();
+  const pagesInSession = state.totalPages - state.seededRead;
+  const msPerPage = state.totalMs / pagesInSession;
+
+  // Where you should be based on time elapsed
+  const pagesIntoSession = Math.floor(t / msPerPage);  // 0,1,2,...
+  const targetPage = Math.min(state.totalPages, state.seededRead + pagesIntoSession + 1);
+  const msIntoCurrent = t - pagesIntoSession * msPerPage;
+  const msLeftOnPage = Math.max(0, msPerPage - msIntoCurrent);
+
+  const actualPage = Math.min(state.totalPages, state.pagesRead + 1);
+  const delta = state.pagesRead - (targetPage - 1);  // +N ahead, -N behind
+
+  const done = state.pagesRead >= state.totalPages;
+
+  document.getElementById('targetPage').textContent = done ? '✓' : targetPage;
+  document.getElementById('actualPage').textContent = done ? state.totalPages : actualPage;
+  document.getElementById('countdown').textContent  = done ? 'Done' : fmtMS(msLeftOnPage);
+  document.getElementById('totalLeft').textContent  = fmtHMS(state.totalMs - t);
+  document.getElementById('chapterHint').textContent = done ? 'Session complete' : chapterFor(targetPage);
+  document.getElementById('progressText').textContent = `${state.pagesRead} / ${state.totalPages} pages`;
+  document.getElementById('paceText').textContent = `${(msPerPage / 60000).toFixed(2)} min/pg`;
+  document.getElementById('barActual').style.width = (state.pagesRead / state.totalPages * 100) + '%';
+  document.getElementById('barTarget').style.left  = ((targetPage - 1) / state.totalPages * 100) + '%';
+
+  const target = document.getElementById('target');
+  const deltaEl = document.getElementById('delta');
+  target.classList.remove('good', 'warn', 'bad');
+  if (done) {
+    target.classList.add('good');
+    deltaEl.textContent = 'COMPLETE 🎉';
+  } else if (delta >= 1) {
+    target.classList.add('good');
+    deltaEl.textContent = `AHEAD BY ${delta}`;
+  } else if (delta === 0) {
+    target.classList.add('good');
+    deltaEl.textContent = 'ON PACE';
+  } else if (delta === -1) {
+    target.classList.add('warn');
+    deltaEl.textContent = 'BEHIND BY 1';
+  } else {
+    target.classList.add('bad');
+    deltaEl.textContent = `BEHIND BY ${-delta}`;
+  }
+
+  // Countdown urgency + ticking sound
+  const urgent = !done && msLeftOnPage < 20000;
+  const cd = document.getElementById('cd');
+  cd.classList.toggle('urgent', urgent);
+
+  // Tick condition: urgent AND on-page-or-worse (delta <= 0) AND not paused AND sound on
+  const shouldTick = urgent && delta <= 0 && !state.paused && soundEnabled();
+  if (shouldTick && !ticking) {
+    playTick();
+    ticking = true;
+  } else if (!shouldTick && ticking) {
+    stopTick();
+    ticking = false;
+  }
+}
+
+function markPage() {
+  if (!state) return;
+  if (state.pagesRead < state.totalPages) {
+    state.pagesRead++;
+    save();
+    tick();
+  }
+}
+
+function unmarkPage() {
+  if (!state) return;
+  if (state.pagesRead > state.seededRead) {
+    state.pagesRead--;
+    save();
+    tick();
+  }
+}
+
+function addFive() {
+  if (!state) return;
+  state.totalMs += 5 * 60 * 1000;
+  save();
+  tick();
+}
+
+function togglePause() {
+  if (!state) return;
+  if (state.paused) {
+    state.paused = false;
+    state.lastResume = Date.now();
+    startTicker();
+  } else {
+    state.elapsedMs += Date.now() - state.lastResume;
+    state.paused = true;
+    if (ticker) { clearInterval(ticker); ticker = null; }
+    stopTick();
+    ticking = false;
+  }
+  save();
+  updatePauseBtn();
+  tick();
+}
+
+function updatePauseBtn() {
+  const btn = document.getElementById('pauseBtn');
+  if (!state || state.paused) {
+    btn.textContent = '▶ Resume';
+    btn.classList.remove('b-pause');
+    btn.classList.add('b-resume');
+  } else {
+    btn.textContent = '⏸ Pause';
+    btn.classList.remove('b-resume');
+    btn.classList.add('b-pause');
+  }
+}
+
+function reset() {
+  if (!confirm('Reset session? Progress will be lost.')) return;
+  localStorage.removeItem(KEY);
+  state = null;
+  stopTick();
+  ticking = false;
+  if (ticker) { clearInterval(ticker); ticker = null; }
+  showStage('setup');
+}
+
+function fmtMS(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, '0')}`;
+}
+function fmtHMS(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  return `${h}:${m}:${String(s % 60).padStart(2, '0')}`;
+}
+function chapterFor(page) {
+  for (const ch of CHAPTERS) {
+    if (page >= ch.start && page <= ch.end) {
+      return `${ch.name} · pg ${page - ch.start + 1} of ${ch.end - ch.start + 1}`;
+    }
+  }
+  return '';
+}
+
+// Keyboard: space = mark page, p = pause, u = undo
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') { e.preventDefault(); markPage(); }
+  else if (e.key === 'p' || e.key === 'P') { togglePause(); }
+  else if (e.key === 'u' || e.key === 'U') { unmarkPage(); }
+});
+
+load();
+</script>
+</body>
+</html>
