@@ -60,6 +60,7 @@
 
   .sound-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11px; color: #666; margin-top: 12px; text-transform: uppercase; letter-spacing: 0.12em; cursor: pointer; user-select: none; }
   .sound-toggle input { accent-color: #2563eb; }
+  .sound-status { text-align: center; margin-top: 10px; padding: 10px; background: #4c1d1d; color: #fff; font-size: 12px; border-radius: 8px; letter-spacing: 0.05em; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -130,6 +131,7 @@
     <label class="sound-toggle">
       <input type="checkbox" id="soundOn" checked> Tick sound when behind &amp; under 20s
     </label>
+    <div id="soundStatus" class="sound-status" style="display:none"></div>
   </div>
 </div>
 
@@ -151,18 +153,53 @@ let ticker = null;
 
 // --- Audio (ticking when on-target-or-behind and under 20s) ---
 let audio = null;
-let ticking = false;
+let ticking = false;        // true once audio.play() has resolved
+let audioBlocked = false;   // true if last play() attempt was rejected by autoplay policy
 function ensureAudio() {
   if (!audio) {
     audio = new Audio('assets/clock-ticking-sound.mp3');
     audio.loop = true;
     audio.volume = 0.7;
     audio.preload = 'auto';
+    audio.addEventListener('error', () => console.warn('[audio] error loading', audio.error));
   }
 }
-function playTick() {
+// Call inside a user gesture to "unlock" autoplay for later background play() calls.
+function unlockAudio() {
   ensureAudio();
-  audio.play().catch(() => { /* autoplay may be blocked until user gesture */ });
+  const p = audio.play();
+  if (p && p.then) {
+    p.then(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      audioBlocked = false;
+      updateSoundStatus();
+      console.log('[audio] unlocked');
+    }).catch((err) => {
+      audioBlocked = true;
+      updateSoundStatus();
+      console.warn('[audio] unlock failed:', err && err.name);
+    });
+  }
+}
+function tryPlay() {
+  ensureAudio();
+  const p = audio.play();
+  if (p && p.then) {
+    p.then(() => {
+      ticking = true;
+      audioBlocked = false;
+      updateSoundStatus();
+      console.log('[audio] playing');
+    }).catch((err) => {
+      ticking = false;          // allow retry on next tick
+      audioBlocked = true;
+      updateSoundStatus();
+      console.warn('[audio] play blocked:', err && err.name);
+    });
+  } else {
+    ticking = true;
+  }
 }
 function stopTick() {
   if (audio) { audio.pause(); audio.currentTime = 0; }
@@ -171,6 +208,21 @@ function soundEnabled() {
   const el = document.getElementById('soundOn');
   return el ? el.checked : true;
 }
+function updateSoundStatus() {
+  const el = document.getElementById('soundStatus');
+  if (!el) return;
+  if (audioBlocked && soundEnabled()) {
+    el.textContent = '🔇 sound blocked — click anywhere to enable';
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// Debug: ?fast=N forces N seconds per page (overrides totalMs/pagesInSession)
+const URL_PARAMS = new URLSearchParams(location.search);
+const FAST_SECONDS = parseInt(URL_PARAMS.get('fast'), 10) || null;
+if (FAST_SECONDS) console.log('[debug] fast mode: ' + FAST_SECONDS + 's per page');
 
 function load() {
   // Restore sound pref
@@ -218,7 +270,7 @@ function start() {
   };
   save();
   // Prime audio with the click gesture so browser allows playback later.
-  ensureAudio();
+  unlockAudio();
   showStage('run');
   updatePauseBtn();
   tick();
@@ -246,7 +298,7 @@ function tick() {
   if (!state) return;
   const t = currentElapsed();
   const pagesInSession = state.totalPages - state.seededRead;
-  const msPerPage = state.totalMs / pagesInSession;
+  const msPerPage = FAST_SECONDS ? FAST_SECONDS * 1000 : state.totalMs / pagesInSession;
 
   // Where you should be based on time elapsed
   const pagesIntoSession = Math.floor(t / msPerPage);  // 0,1,2,...
@@ -297,8 +349,7 @@ function tick() {
   // Tick condition: urgent AND on-page-or-worse (delta <= 0) AND not paused AND sound on
   const shouldTick = urgent && delta <= 0 && !state.paused && soundEnabled();
   if (shouldTick && !ticking) {
-    playTick();
-    ticking = true;
+    tryPlay();   // sets ticking=true only after play() resolves
   } else if (!shouldTick && ticking) {
     stopTick();
     ticking = false;
@@ -398,6 +449,11 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'p' || e.key === 'P') { togglePause(); }
   else if (e.key === 'u' || e.key === 'U') { unmarkPage(); }
 });
+
+// Any click re-attempts to unlock audio if a previous play() got blocked.
+document.addEventListener('click', () => {
+  if (audioBlocked) unlockAudio();
+}, true);
 
 load();
 </script>
